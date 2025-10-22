@@ -1,0 +1,597 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibrant Profile Cap Editor</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* --- General Styling & Vibrant Background --- */
+        body {
+            /* Radial Gradient Background: Deep Purple to Electric Blue */
+            background: radial-gradient(circle at top left, #4f46e5, #00BCD4, #7c3aed); 
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        /* Card Styling for better visual appeal */
+        .card-container {
+            background-color: rgba(255, 255, 255, 0.95); /* Semi-transparent white */
+            backdrop-filter: blur(8px); /* Subtle blur effect */
+            border-radius: 2rem; /* Larger radius for modern look */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+            max-width: 550px; /* Slightly wider card */
+        }
+
+        /* --- Cap Element Styling (Updated Lighter Mint Green: #98F7C6) --- */
+        #draggable-cap {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            z-index: 20;
+            transition: opacity 0.3s;
+        }
+
+        .cap-dome {
+            /* Cap Color: Lighter Mint Green #98F7C6 */
+            background-color: #98F7C6; 
+            width: 100%;
+            height: 66.66%; 
+            border-top-left-radius: 50%;
+            border-top-right-radius: 50%;
+            position: relative;
+            /* Inner shadow for 3D depth */
+            box-shadow: inset 0 -4px 10px rgba(0, 0, 0, 0.2); 
+            /* Border Color: Darker Mint for contrast #6FEBB3 */
+            border: 2px solid #6FEBB3; 
+            box-sizing: border-box;
+        }
+
+        .cap-brim {
+            /* Cap Color: Lighter Mint Green #98F7C6 */
+            background-color: #98F7C6; 
+            width: 120%;
+            height: 33.33%; 
+            position: absolute;
+            bottom: -5%;
+            left: -10%;
+            border-radius: 0 0 50% 50% / 0 0 15px 15px;
+            transform: rotate(-3deg);
+            z-index: -1;
+            /* Outer shadow for realism */
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+            /* Border Color: Darker Mint for contrast #6FEBB3 */
+            border-bottom: 2px solid #6FEBB3;
+        }
+
+        .bat-logo {
+            position: absolute;
+            top: 30%; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 40%;
+            filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.8)) drop-shadow(-1px -1px 1px rgba(255, 255, 255, 0.2));
+        }
+        
+        .bat-logo svg {
+            width: 100%;
+            height: 100%;
+            fill: #1f2937; /* Dark Gray logo fill color */
+            overflow: visible;
+        }
+
+        /* --- Profile Container & Image Styling --- */
+        #profile-container {
+            position: relative;
+            width: 320px; /* Slightly larger image area */
+            height: 320px;
+            background-color: #374151;
+            overflow: hidden;
+            touch-action: none; 
+            transition: all 0.5s ease;
+        }
+        #profile-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0.75rem;
+            transition: opacity 0.5s;
+        }
+        
+        /* Initial State Placeholder */
+        .initial-state {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #d1d5db;
+            text-align: center;
+        }
+        
+        /* Button Styles for better effects */
+        .action-button {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="w-full card-container p-6 sm:p-10 rounded-3xl border border-gray-100/50">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-2 text-center tracking-tight">Cap Profile Creator</h1>
+        <p class="text-gray-600 mb-8 text-center text-lg">Upload your picture, scale the cap, and drag it to fit perfectly.</p>
+
+        <!-- File Upload Input (Fuchsia Button) -->
+        <label for="file-upload" class="block w-full text-center py-4 mb-8 cursor-pointer bg-fuchsia-600 hover:bg-fuchsia-700 transition duration-300 rounded-xl text-white font-bold text-xl shadow-xl shadow-fuchsia-500/50 action-button">
+            Upload Profile Picture
+        </label>
+        <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="loadProfileImage(event)">
+
+        <!-- Cap Size Slider Control -->
+        <div class="mb-8">
+            <label for="cap-size-slider" class="block text-sm font-bold text-gray-700 mb-3">
+                Adjust Cap Size: <span id="cap-size-value" class="text-fuchsia-600">100%</span>
+            </label>
+            <input type="range" id="cap-size-slider" min="0.5" max="2.0" step="0.05" value="1.0" 
+                   oninput="adjustCapSize(event)"
+                   class="w-full h-2 bg-fuchsia-200 rounded-lg appearance-none cursor-pointer range-lg disabled:opacity-30" disabled>
+        </div>
+
+        <!-- Profile Picture and Draggable Cap Area -->
+        <div id="image-editor-area" class="relative flex justify-center p-4 bg-gray-100 rounded-2xl shadow-inner mb-8">
+            <div id="profile-container" class="rounded-xl shadow-2xl">
+                <!-- Image Display Area -->
+                <img id="profile-image" src="" alt="Profile Picture" class="opacity-0">
+
+                <!-- Initial State Message -->
+                <div id="initial-message" class="initial-state absolute inset-0 text-xl pointer-events-none">
+                    <svg class="w-14 h-14 mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-9-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span>Upload an image to start editing</span>
+                </div>
+            </div>
+
+            <!-- Draggable Cap Element (Mint Green, Initially Hidden) -->
+            <div id="draggable-cap" class="opacity-0">
+                <div class="cap-dome">
+                    <div class="bat-logo">
+                        <!-- Text Logo SVG -->
+                        <svg viewBox="0 0 126 16" fill="currentColor">
+                            <path d="M77.0818 6.33333V2.77778H84.4398C86.2572 2.77778 86.8112 3.62222 86.8112 4.55556C86.8112 5.6 86.2572 6.33333 84.4398 6.33333H77.0818ZM74.4223 15.7778H77.0818V8.84444L87.055 15.7778H91.1994L81.2927 8.88889H84.5728C88.3626 8.88889 89.4707 6.93333 89.4707 4.55556C89.4707 2.17778 88.3626 0.222222 84.5728 0.222222H74.4223V15.7778ZM58.7754 15.7778H72.2947V13.2222H61.435V9.22222H71.8736V6.77778H61.435V2.77778H72.206V0.222222H58.7754V15.7778ZM43.3502 2.77778H48.913C52.1045 2.77778 54.3207 4.15556 54.3207 8C54.3207 11.8444 52.1045 13.2222 48.913 13.2222H43.3502V2.77778ZM40.6907 15.7778H48.913C53.6559 15.7778 56.9803 13.7333 56.9803 8C56.9803 2.71111 53.6559 0.222222 48.913 0.222222H40.6907V15.7778ZM35.8149 15.7778H38.4744V0.222222H35.8149V15.7778ZM20.301 15.7778H33.5986V13.4444H22.9605V0.222222H20.301V15.7778ZM9.90672 16C12.1452 16 15.669 15.2444 18.0847 13.7556V6.8H10.1948V9.35556H15.4252V12C14.1398 12.9333 11.8792 13.4444 9.90672 13.4444C5.98392 13.4444 2.65952 11.2889 2.65952 8C2.65952 4.48889 5.98392 2.55556 9.90672 2.55556C11.7019 2.55556 14.4057 3 16.2231 4.62222V1.66667C14.583 0.6 12.0343 0 9.90672 0C4.16658 0 0 3.24444 0 8C0 12.7556 4.16658 16 9.90672 16Z" fill="currentColor"/>
+                            <path d="M113.122 14H113.121C113.096 9.72419 109.668 6.26569 105.443 6.26569C103.698 6.26569 102.09 6.85501 100.801 7.84785C102.254 5.31115 104.445 3.26163 107.075 2C108.669 3.53927 110.826 4.48429 113.202 4.48429C115.575 4.48429 117.731 3.54093 119.325 2.00404C122.027 3.30226 124.264 5.43216 125.714 8.06745C124.382 6.94249 122.669 6.26568 120.8 6.26568C116.574 6.26568 113.146 9.72418 113.122 14Z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="cap-brim"></div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+            <button id="save-button" onclick="saveImage()" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 transition duration-200 rounded-lg text-white font-bold text-lg shadow-xl shadow-emerald-500/50 action-button opacity-50 cursor-not-allowed" disabled>
+                Download Final Image
+            </button>
+            <button id="reset-button" onclick="resetApp()" class="flex-1 py-3 bg-rose-500 hover:bg-rose-600 transition duration-200 rounded-lg text-white font-bold text-lg shadow-xl shadow-rose-500/50 action-button">
+                Reset
+            </button>
+        </div>
+        
+        <!-- Save Message Box (Replaces alert) -->
+        <div id="message-box" class="mt-4 p-4 rounded-lg bg-yellow-100 text-yellow-800 font-medium text-center hidden"></div>
+
+    </div>
+
+    <script>
+        // --- Configuration & Global State ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const BASE_CAP_WIDTH = 150; // Base screen width of the cap
+        const BASE_CAP_HEIGHT = 75; // Base screen height of the cap
+        
+        // NEW CONSTANTS TO CORRECT CANVAS CLIPPING (Brim overflows by 20% width total and slightly in height)
+        const CAP_OVERFLOW_W_FACTOR = 1.2; 
+        const CAP_OVERFLOW_H_FACTOR = 1.4; // Generous factor to ensure brim is fully captured
+        const CAP_SVG_SHIFT_X_FACTOR = 0.1; // Compensate for the brim's left: -10% overflow
+        
+        let currentCapScale = 1.0; 
+        
+        // NEW COLOR CONSTANTS
+        const CAP_COLOR = '#98F7C6'; // Lighter Mint Green
+        const LOGO_COLOR = '#1f2937'; // Dark Gray Logo Color
+        const BORDER_COLOR = '#6FEBB3'; // Darker Mint for contrast
+
+        // --- DOM Elements ---
+        const profileImage = document.getElementById('profile-image');
+        const profileContainer = document.getElementById('profile-container');
+        const draggableCap = document.getElementById('draggable-cap');
+        const initialMessage = document.getElementById('initial-message');
+        const saveButton = document.getElementById('save-button');
+        const messageBox = document.getElementById('message-box');
+        const sizeSlider = document.getElementById('cap-size-slider');
+        const sizeValueSpan = document.getElementById('cap-size-value');
+
+        // --- Dragging State Variables ---
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+        let containerRect; 
+
+        /**
+         * Initializes the cap size and position.
+         */
+        function initializeCap() {
+            currentCapScale = parseFloat(sizeSlider.value);
+            const initialWidth = BASE_CAP_WIDTH * currentCapScale;
+            const initialHeight = BASE_CAP_HEIGHT * currentCapScale;
+            
+            draggableCap.style.width = `${initialWidth}px`;
+            draggableCap.style.height = `${initialHeight}px`;
+
+            // Center the cap on the image
+            draggableCap.style.left = `${(profileContainer.offsetWidth - initialWidth) / 2}px`;
+            draggableCap.style.top = `${(profileContainer.offsetHeight - initialHeight) * 0.25}px`; // Start high up
+        }
+
+        /**
+         * Displays a temporary message to the user.
+         */
+        function showMessage(message, bgColor = 'bg-yellow-100', textColor = 'text-yellow-800') {
+            messageBox.textContent = message;
+            messageBox.className = `mt-4 p-4 rounded-lg ${bgColor} ${textColor} font-medium text-center`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 3000);
+        }
+
+        /**
+         * Handles the file upload and displays the image.
+         */
+        function loadProfileImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                profileImage.src = e.target.result;
+                profileImage.onload = () => {
+                    profileImage.classList.remove('opacity-0');
+                    initialMessage.classList.add('hidden');
+                    
+                    // Enable controls
+                    draggableCap.classList.remove('opacity-0');
+                    saveButton.disabled = false;
+                    saveButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    sizeSlider.disabled = false;
+                    
+                    // Set initial cap size/position
+                    initializeCap();
+
+                    showMessage("Image loaded! Adjust the cap size and drag it into position.", 'bg-indigo-100', 'text-indigo-800');
+                    containerRect = profileContainer.getBoundingClientRect();
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        /**
+         * Handles cap size changes from the slider.
+         */
+        function adjustCapSize(event) {
+            currentCapScale = parseFloat(event.target.value);
+            const newWidth = BASE_CAP_WIDTH * currentCapScale;
+            const newHeight = BASE_CAP_HEIGHT * currentCapScale;
+
+            // Update display value
+            sizeValueSpan.textContent = `${Math.round(currentCapScale * 100)}%`;
+
+            // Calculate new position to keep the cap roughly centered relative to its current screen position
+            const oldWidth = draggableCap.offsetWidth;
+            const oldHeight = draggableCap.offsetHeight;
+            const currentX = parseFloat(draggableCap.style.left.replace('px', ''));
+            const currentY = parseFloat(draggableCap.style.top.replace('px', ''));
+
+            // Shift position to keep the center stable when scaling
+            const shiftX = (oldWidth - newWidth) / 2;
+            const shiftY = (oldHeight - newHeight) / 2;
+
+            const newX = currentX + shiftX;
+            const newY = currentY + shiftY;
+            
+            // Apply new dimensions and position
+            draggableCap.style.width = `${newWidth}px`;
+            draggableCap.style.height = `${newHeight}px`;
+
+            // Apply new position, clamping it inside the container bounds
+            draggableCap.style.left = `${Math.max(0, Math.min(newX, profileContainer.offsetWidth - newWidth))}px`;
+            draggableCap.style.top = `${Math.max(0, Math.min(newY, profileContainer.offsetHeight - newHeight))}px`;
+        }
+
+
+        // --- Drag and Drop Logic (Mouse and Touch) ---
+
+        /**
+         * Gets the client coordinates from a mouse or touch event.
+         */
+        function getClientCoords(event) {
+            if (event.touches) {
+                return {
+                    clientX: event.touches[0].clientX,
+                    clientY: event.touches[0].clientY
+                };
+            }
+            return {
+                clientX: event.clientX,
+                clientY: event.clientY
+            };
+        }
+
+        function startDrag(event) {
+            if (profileImage.classList.contains('opacity-0')) return;
+            
+            event.preventDefault(); 
+            isDragging = true;
+            draggableCap.style.cursor = 'grabbing';
+            containerRect = profileContainer.getBoundingClientRect(); 
+
+            const coords = getClientCoords(event);
+            const capRect = draggableCap.getBoundingClientRect();
+            
+            // Calculate offset relative to the viewport
+            offset.x = coords.clientX - capRect.left;
+            offset.y = coords.clientY - capRect.top;
+
+            // Add global move and end listeners
+            document.addEventListener('mousemove', drag, { passive: false });
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', endDrag);
+        }
+
+        function drag(event) {
+            if (!isDragging) return;
+            
+            event.preventDefault(); // Stop mobile scrolling
+
+            const coords = getClientCoords(event);
+
+            // Calculate new position relative to the document
+            let newX = coords.clientX - offset.x;
+            let newY = coords.clientY - offset.y;
+
+            // Calculate position relative to the profile container (0, 0)
+            let relativeX = newX - containerRect.left;
+            let relativeY = newY - containerRect.top;
+            
+            const capWidth = draggableCap.offsetWidth;
+            const capHeight = draggableCap.offsetHeight;
+            const containerWidth = containerRect.width;
+            const containerHeight = containerRect.height;
+
+            // Boundary checking: keep the cap inside the container
+            relativeX = Math.max(0, Math.min(relativeX, containerWidth - capWidth));
+            relativeY = Math.max(0, Math.min(relativeY, containerHeight - capHeight));
+
+            // Apply new position
+            draggableCap.style.left = `${relativeX}px`;
+            draggableCap.style.top = `${relativeY}px`;
+        }
+
+        function endDrag() {
+            isDragging = false;
+            draggableCap.style.cursor = 'grab';
+            
+            // Remove listeners
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', endDrag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', endDrag);
+        }
+
+        // Initialize listeners on the cap element
+        draggableCap.addEventListener('mousedown', startDrag);
+        draggableCap.addEventListener('touchstart', startDrag);
+
+
+        /**
+         * Combines the image and the cap overlay onto a canvas and downloads the result.
+         */
+        function saveImage() {
+            if (profileImage.classList.contains('opacity-0')) {
+                showMessage("Please upload an image first!", 'bg-red-100', 'text-red-800');
+                return;
+            }
+            
+            // 1. Create a temporary canvas
+            const canvas = document.createElement('canvas');
+            const img = profileImage;
+            
+            // Set canvas dimensions to the image's natural dimensions for best quality
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+
+            // 2. Draw the profile image onto the canvas
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // 3. Calculate scaling factor and cap position relative to the natural image size
+            const scaleFactorX = img.naturalWidth / profileContainer.offsetWidth;
+            const scaleFactorY = img.naturalHeight / profileContainer.offsetHeight;
+
+            const capRect = draggableCap.getBoundingClientRect();
+            const containerRect = profileContainer.getBoundingClientRect();
+
+            // Calculate cap's top-left corner relative to the original image's coordinates
+            const capRelativeX = (capRect.left - containerRect.left) * scaleFactorX;
+            const capRelativeY = (capRect.top - containerRect.top) * scaleFactorY;
+            
+            // Cap's scaled size (using current screen size which reflects the slider value)
+            const capWidthScaled = draggableCap.offsetWidth * scaleFactorX;
+            const capHeightScaled = draggableCap.offsetHeight * scaleFactorY;
+
+            // --- DEBUG FIX: Increase SVG size and offset foreignObject to prevent clipping ---
+            
+            // Calculate necessary dimensions for the SVG to contain the overflowing brim
+            const CAP_SVG_WIDTH = BASE_CAP_WIDTH * CAP_OVERFLOW_W_FACTOR; // 180px
+            const CAP_SVG_HEIGHT = BASE_CAP_HEIGHT * CAP_OVERFLOW_H_FACTOR; // 105px
+            const CAP_SVG_SHIFT_X = BASE_CAP_WIDTH * CAP_SVG_SHIFT_X_FACTOR; // 15px
+
+            // 4. Use the cap's inner HTML to create an SVG for canvas drawing.
+            const svgMarkup = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="${CAP_SVG_WIDTH}" height="${CAP_SVG_HEIGHT}" viewBox="0 0 ${CAP_SVG_WIDTH} ${CAP_SVG_HEIGHT}">
+                    <style>
+                        /* Set the container size back to base, the SVG size handles overflow */
+                        .cap-container {
+                            width: ${BASE_CAP_WIDTH}px; 
+                            height: ${BASE_CAP_HEIGHT}px; 
+                            position:relative; 
+                            overflow: visible; 
+                            display: block;
+                        }
+                        /* Styles for cap dome */
+                        .cap-dome {
+                            background-color: ${CAP_COLOR}; 
+                            width: 100%;
+                            height: 66.66%; 
+                            border-top-left-radius: 50%;
+                            border-top-right-radius: 50%;
+                            position: relative;
+                            box-shadow: inset 0 -4px 10px rgba(0, 0, 0, 0.2);
+                            border: 2px solid ${BORDER_COLOR};
+                            box-sizing: border-box; 
+                        }
+
+                        /* Styles for cap brim (overflows horizontally and vertically) */
+                        .cap-brim {
+                            background-color: ${CAP_COLOR}; 
+                            width: 120%;
+                            height: 33.33%; 
+                            position: absolute;
+                            bottom: -5%;
+                            left: -10%;
+                            border-radius: 0 0 50% 50% / 0 0 15px 15px;
+                            transform: rotate(-3deg);
+                            z-index: -1;
+                            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+                            border-bottom: 2px solid ${BORDER_COLOR};
+                        }
+                        /* Logo styles */
+                        .bat-logo {
+                            position: absolute;
+                            top: 30%; 
+                            left: 50%;
+                            transform: translateX(-50%);
+                            width: 80%; 
+                            height: 40%;
+                            filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.8)) drop-shadow(-1px -1px 1px rgba(255, 255, 255, 0.2));
+                        }
+                        .bat-logo svg {
+                            width: 100%;
+                            height: 100%;
+                            fill: ${LOGO_COLOR};
+                        }
+                    </style>
+                    <foreignObject x="${CAP_SVG_SHIFT_X}" y="0" width="${BASE_CAP_WIDTH}" height="${BASE_CAP_HEIGHT}">
+                        <div xmlns="http://www.w3.org/1999/xhtml" class="cap-container">
+                            <div class="cap-dome">
+                                <div class="bat-logo">
+                                    <svg viewBox="0 0 126 16">
+                                        <path d="M77.0818 6.33333V2.77778H84.4398C86.2572 2.77778 86.8112 3.62222 86.8112 4.55556C86.8112 5.6 86.2572 6.33333 84.4398 6.33333H77.0818ZM74.4223 15.7778H77.0818V8.84444L87.055 15.7778H91.1994L81.2927 8.88889H84.5728C88.3626 8.88889 89.4707 6.93333 89.4707 4.55556C89.4707 2.17778 88.3626 0.222222 84.5728 0.222222H74.4223V15.7778ZM58.7754 15.7778H72.2947V13.2222H61.435V9.22222H71.8736V6.77778H61.435V2.77778H72.206V0.222222H58.7754V15.7778ZM43.3502 2.77778H48.913C52.1045 2.77778 54.3207 4.15556 54.3207 8C54.3207 11.8444 52.1045 13.2222 48.913 13.2222H43.3502V2.77778ZM40.6907 15.7778H48.913C53.6559 15.7778 56.9803 13.7333 56.9803 8C56.9803 2.71111 53.6559 0.222222 48.913 0.222222H40.6907V15.7778ZM35.8149 15.7778H38.4744V0.222222H35.8149V15.7778ZM20.301 15.7778H33.5986V13.4444H22.9605V0.222222H20.301V15.7778ZM9.90672 16C12.1452 16 15.669 15.2444 18.0847 13.7556V6.8H10.1948V9.35556H15.4252V12C14.1398 12.9333 11.8792 13.4444 9.90672 13.4444C5.98392 13.4444 2.65952 11.2889 2.65952 8C2.65952 4.48889 5.98392 2.55556 9.90672 2.55556C11.7019 2.55556 14.4057 3 16.2231 4.62222V1.66667C14.583 0.6 12.0343 0 9.90672 0C4.16658 0 0 3.24444 0 8C0 12.7556 4.16658 16 9.90672 16Z" fill="currentColor"/>
+                                        <path d="M113.122 14H113.121C113.096 9.72419 109.668 6.26569 105.443 6.26569C103.698 6.26569 102.09 6.85501 100.801 7.84785C102.254 5.31115 104.445 3.26163 107.075 2C108.669 3.53927 110.826 4.48429 113.202 4.48429C115.575 4.48429 117.731 3.54093 119.325 2.00404C122.027 3.30226 124.264 5.43216 125.714 8.06745C124.382 6.94249 122.669 6.26568 120.8 6.26568C116.574 6.26568 113.146 9.72418 113.122 14Z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="cap-brim"></div>
+                        </div>
+                    </foreignObject>
+                </svg>
+            `;
+            
+            const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgMarkup);
+            
+            const capImg = new Image();
+            capImg.onload = function() {
+                // Calculate position adjustment based on the SVG's new, larger size
+                const adjustedCapRelativeX = capRelativeX - (capWidthScaled * (CAP_SVG_SHIFT_X / BASE_CAP_WIDTH));
+
+                // Draw the cap image onto the canvas at the scaled position and size
+                // We draw the capImg (which is the scaled SVG) at the calculated image location,
+                // using its new larger scaled dimensions (capWidthScaled * CAP_OVERFLOW_W_FACTOR, capHeightScaled * CAP_OVERFLOW_H_FACTOR)
+                ctx.drawImage(
+                    capImg, 
+                    adjustedCapRelativeX, // Adjusted X to account for the SVG's internal shift
+                    capRelativeY, 
+                    capWidthScaled * CAP_OVERFLOW_W_FACTOR, 
+                    capHeightScaled * CAP_OVERFLOW_H_FACTOR 
+                );
+
+                // 5. Generate the final image and trigger download
+                const dataURL = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = dataURL;
+                a.download = 'custom-profile-cap.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                showMessage("Image saved successfully!", 'bg-emerald-100', 'text-emerald-800');
+            };
+            capImg.onerror = function(e) {
+                console.error("Image loading error for SVG:", e);
+                showMessage("Error saving image. Ensure your browser allows canvas drawing from SVGs.", 'bg-rose-100', 'text-rose-800');
+            };
+
+            capImg.src = svgDataUrl;
+        }
+
+        /**
+         * Resets the application state.
+         */
+        function resetApp() {
+            profileImage.src = "";
+            profileImage.classList.add('opacity-0');
+            initialMessage.classList.remove('hidden');
+            draggableCap.classList.add('opacity-0');
+            
+            // Disable and reset controls
+            saveButton.disabled = true;
+            saveButton.classList.add('opacity-50', 'cursor-not-allowed');
+            sizeSlider.disabled = true;
+            sizeSlider.value = 1.0;
+            sizeValueSpan.textContent = '100%';
+
+            document.getElementById('file-upload').value = null; // Clear file input
+            
+            // Reset cap size and position
+            currentCapScale = 1.0;
+            draggableCap.style.width = `${BASE_CAP_WIDTH}px`;
+            draggableCap.style.height = `${BASE_CAP_HEIGHT}px`;
+            draggableCap.style.left = `calc(50% - ${BASE_CAP_WIDTH / 2}px)`;
+            draggableCap.style.top = `25%`;
+
+            showMessage("Application reset. Ready for a new picture.", 'bg-indigo-100', 'text-indigo-800');
+        }
+
+        // Initialize cap size on load
+        document.addEventListener('DOMContentLoaded', () => {
+             // Reset initial slider value and text display
+            sizeSlider.value = 1.0;
+            sizeValueSpan.textContent = '100%';
+            
+            // Set initial fixed size for the cap element while no image is loaded
+            draggableCap.style.width = `${BASE_CAP_WIDTH}px`;
+            draggableCap.style.height = `${BASE_CAP_HEIGHT}px`;
+            draggableCap.style.left = `calc(50% - ${BASE_CAP_WIDTH / 2}px)`;
+            draggableCap.style.top = `25%`;
+        });
+    </script>
+</body>
+</html>
